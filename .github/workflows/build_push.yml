@@ -1,7 +1,7 @@
 name: CI
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - master
     paths:
@@ -48,7 +48,6 @@ jobs:
           git_user_signingkey: true
           git_commit_gpgsign: true
 
-        # This step is going to commit, but this will not trigger another workflow.
       - name: Bump extensions that uses a modified lib
         if: steps.modified-libs.outputs.any_changed == 'true'
         run: |
@@ -61,7 +60,6 @@ jobs:
         run: |
           set -x
           projects=(src/*/*)
-
           echo "NUM_INDIVIDUAL_MODULES=${#projects[@]}" >> $GITHUB_ENV
 
       - id: generate-matrices
@@ -71,11 +69,8 @@ jobs:
           script: |
             const numIndividualModules = process.env.NUM_INDIVIDUAL_MODULES;
             const chunkSize = process.env.CI_CHUNK_SIZE;
-
             const numIndividualChunks = Math.ceil(numIndividualModules / chunkSize);
-
             console.log(`Individual modules: ${numIndividualModules} (${numIndividualChunks} chunks of ${chunkSize})`);
-
             core.setOutput('individualMatrix', { 'chunk': [...Array(numIndividualChunks).keys()] });
 
   build_individual:
@@ -149,11 +144,11 @@ jobs:
       - name: Create repo artifacts
         run: |
           cd master
-          python ./.github/scripts/move-apks.py
+          python .github/scripts/move-apks.py
           INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/aniyomiorg/aniyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
           curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
           java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
-          python ./.github/scripts/create-repo.py
+          python .github/scripts/create-repo.py
 
       - name: Checkout repo branch
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
@@ -176,3 +171,4 @@ jobs:
         run: |
           cd repo
           ../master/.github/scripts/commit-repo.sh
+          
